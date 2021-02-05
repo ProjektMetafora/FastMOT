@@ -54,7 +54,10 @@ def intersection(tlbr1, tlbr2):
     tl = np.maximum(tl1, tl2)
     br = np.minimum(br1, br2)
     tlbr = np.append(tl, br)
+    # print("intersection tlbr: ", tlbr)
     if np.any(get_size(tlbr) <= 0):
+        # print("getsize gave ", get_size(tlbr))
+        print("Size is <= 0 for ", tlbr)
         return None
     return tlbr
 
@@ -72,14 +75,16 @@ def union(tlbr1, tlbr2):
 @nb.njit(cache=True)
 def crop(img, tlbr):
     xmin, ymin, xmax, ymax = tlbr.astype(np.int_)
-    return img[ymin:ymax + 1, xmin:xmax + 1]
+    return img[ymin : ymax + 1, xmin : xmax + 1]
 
 
 @nb.njit(cache=True)
 def multi_crop(img, tlbrs):
     tlbrs_ = tlbrs.astype(np.int_)
-    return [img[tlbrs_[i][1]:tlbrs_[i][3] + 1, tlbrs_[i][0]:tlbrs_[i][2] + 1]
-            for i in range(len(tlbrs_))]
+    return [
+        img[tlbrs_[i][1] : tlbrs_[i][3] + 1, tlbrs_[i][0] : tlbrs_[i][2] + 1]
+        for i in range(len(tlbrs_))
+    ]
 
 
 @nb.njit(fastmath=True, cache=True)
@@ -89,7 +94,7 @@ def iom(tlbr1, tlbr2):
     """
     tlbr = intersection(tlbr1, tlbr2)
     if tlbr is None:
-        return 0.
+        return 0.0
     area_intersection = area(tlbr)
     area_minimum = min(area(tlbr1), area(tlbr2))
     return area_intersection / area_minimum
@@ -201,9 +206,9 @@ def diou_nms(tlwhs, scores, nms_thresh, beta=0.6):
 
         union_w = union_xmax - union_xmin + 1
         union_h = union_ymax - union_ymin + 1
-        c = union_w**2 + union_h**2
-        d = np.sum((centers[i] - centers[ordered[1:]])**2, axis=1)
-        diou = iou - (d / c)**beta
+        c = union_w ** 2 + union_h ** 2
+        d = np.sum((centers[i] - centers[ordered[1:]]) ** 2, axis=1)
+        diou = iou - (d / c) ** beta
 
         idx = np.where(diou <= nms_thresh)[0]
         ordered = ordered[idx + 1]

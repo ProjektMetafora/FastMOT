@@ -4,3 +4,4 @@ numba == 0.48
 tensorflow < 2.0 
 pycuda
 cython-bbox
+jupyterlab

@@ -36,16 +36,59 @@ class YOLO:
 
         old_tensors = [network.get_output(i) for i in range(network.num_outputs)]
         new_tensors = []
-        plugin = network.add_plugin_v2(
-            old_tensors,
-            plugin_creator.create_plugin(
-                "YoloLayer_TRT", trt.PluginFieldCollection([])
-            ),
-        )
-        new_tensors = plugin.get_output(0)
+        for i, old_tensor in enumerate(old_tensors):
+            yolo_width = cls.INPUT_SHAPE[2] // cls.LAYER_FACTORS[i]
+            yolo_height = cls.INPUT_SHAPE[1] // cls.LAYER_FACTORS[i]
+            num_anchors = len(cls.ANCHORS[i]) // 2
+            plugin = network.add_plugin_v2(
+                [old_tensor],
+                plugin_creator.create_plugin(
+                    "YoloLayer_TRT",
+                    trt.PluginFieldCollection(
+                        [
+                            trt.PluginField(
+                                "yoloWidth",
+                                np.array(yolo_width, dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "yoloHeight",
+                                np.array(yolo_height, dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "inputWidth",
+                                np.array(cls.INPUT_SHAPE[2], dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "inputHeight",
+                                np.array(cls.INPUT_SHAPE[1], dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "numClasses",
+                                np.array(cls.NUM_CLASSES, dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "numAnchors",
+                                np.array(num_anchors, dtype=np.int32),
+                                trt.PluginFieldType.INT32,
+                            ),
+                            trt.PluginField(
+                                "anchors",
+                                np.array(cls.ANCHORS[i], dtype=np.float32),
+                                trt.PluginFieldType.FLOAT32,
+                            ),
+                        ]
+                    ),
+                ),
+            )
+            new_tensors.append(plugin.get_output(0))
 
-        network.mark_output(new_tensors)
-
+        for new_tensor in new_tensors:
+            network.mark_output(new_tensor)
         for old_tensor in old_tensors:
             network.unmark_output(old_tensor)
         return network

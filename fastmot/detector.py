@@ -11,12 +11,7 @@ from .utils.rect import as_rect, to_tlbr, get_size, area
 from .utils.rect import union, multi_crop, iom, diou_nms
 
 
-DET_DTYPE = np.dtype(
-    [('tlbr', float, 4),
-     ('label', int),
-     ('conf', float)],
-    align=True
-)
+DET_DTYPE = np.dtype([("tlbr", float, 4), ("label", int), ("conf", float)], align=True)
 
 
 class Detector:
@@ -46,14 +41,14 @@ class SSDDetector(Detector):
     def __init__(self, size, config):
         super().__init__(size)
         self.label_mask = np.zeros(len(models.LABEL_MAP), dtype=bool)
-        self.label_mask[list(config['class_ids'])] = True
+        self.label_mask[list(config["class_ids"])] = True
 
-        self.model = getattr(models, config['model'])
-        self.tile_overlap = config['tile_overlap']
-        self.tiling_grid = config['tiling_grid']
-        self.conf_thresh = config['conf_thresh']
-        self.max_area = config['max_area']
-        self.merge_thresh = config['merge_thresh']
+        self.model = getattr(models, config["model"])
+        self.tile_overlap = config["tile_overlap"]
+        self.tiling_grid = config["tiling_grid"]
+        self.conf_thresh = config["conf_thresh"]
+        self.max_area = config["max_area"]
+        self.merge_thresh = config["merge_thresh"]
 
         self.batch_size = int(np.prod(self.tiling_grid))
         self.input_size = np.prod(self.model.INPUT_SHAPE)
@@ -68,9 +63,15 @@ class SSDDetector(Detector):
 
     def postprocess(self):
         det_out = self.backend.synchronize()[0]
-        detections, tile_ids = self._filter_dets(det_out, self.tiles, self.model.TOPK,
-                                                 self.label_mask, self.max_area,
-                                                 self.conf_thresh, self.scale_factor)
+        detections, tile_ids = self._filter_dets(
+            det_out,
+            self.tiles,
+            self.model.TOPK,
+            self.label_mask,
+            self.max_area,
+            self.conf_thresh,
+            self.scale_factor,
+        )
         detections = self._merge_dets(detections, tile_ids)
         return detections
 
@@ -80,8 +81,13 @@ class SSDDetector(Detector):
         step_size = (1 - self.tile_overlap) * tile_size
         total_size = (tiling_grid - 1) * step_size + tile_size
         total_size = tuple(total_size.astype(int))
-        tiles = np.array([to_tlbr((c * step_size[0], r * step_size[1], *tile_size))
-                          for r in range(tiling_grid[1]) for c in range(tiling_grid[0])])
+        tiles = np.array(
+            [
+                to_tlbr((c * step_size[0], r * step_size[1], *tile_size))
+                for r in range(tiling_grid[1])
+                for c in range(tiling_grid[0])
+            ]
+        )
         return tiles, total_size
 
     def _merge_dets(self, detections, tile_ids):
@@ -89,7 +95,9 @@ class SSDDetector(Detector):
         tile_ids = np.asarray(tile_ids)
         if len(detections) == 0:
             return detections
-        detections = self._merge(detections, tile_ids, self.batch_size, self.merge_thresh)
+        detections = self._merge(
+            detections, tile_ids, self.batch_size, self.merge_thresh
+        )
         return detections.view(np.recarray)
 
     @staticmethod
@@ -105,7 +113,7 @@ class SSDDetector(Detector):
             chw = rgb.transpose(2, 0, 1)
             # Normalize to [-1.0, 1.0] interval
             normalized = chw * (2 / 255) - 1
-            out[offset:offset + size] = normalized.ravel()
+            out[offset : offset + size] = normalized.ravel()
 
     @staticmethod
     @nb.njit(fastmath=True, cache=True)
@@ -123,8 +131,12 @@ class SSDDetector(Detector):
                 if conf < thresh:
                     break
                 if label_mask[label]:
-                    tl = (det_out[offset + 3:offset + 5] * size + tile[:2]) * scale_factor
-                    br = (det_out[offset + 5:offset + 7] * size + tile[:2]) * scale_factor
+                    tl = (
+                        det_out[offset + 3 : offset + 5] * size + tile[:2]
+                    ) * scale_factor
+                    br = (
+                        det_out[offset + 5 : offset + 7] * size + tile[:2]
+                    ) * scale_factor
                     tlbr = as_rect(np.append(tl, br))
                     if 0 < area(tlbr) <= max_area:
                         detections.append((tlbr, label, conf))
@@ -171,11 +183,11 @@ class SSDDetector(Detector):
 class YoloDetector(Detector):
     def __init__(self, size, config):
         super().__init__(size)
-        self.model = getattr(models, config['model'])
-        self.class_ids = config['class_ids']
-        self.conf_thresh = config['conf_thresh']
-        self.max_area = config['max_area']
-        self.nms_thresh = config['nms_thresh']
+        self.model = getattr(models, config["model"])
+        self.class_ids = config["class_ids"]
+        self.conf_thresh = config["conf_thresh"]
+        self.max_area = config["max_area"]
+        self.nms_thresh = config["nms_thresh"]
 
         self.batch_size = 1
         self.backend = InferenceBackend(self.model, self.batch_size)
@@ -186,11 +198,30 @@ class YoloDetector(Detector):
         self.backend.infer_async()
 
     def postprocess(self):
-        det_out = self.backend.synchronize()
-        det_out = np.concatenate(det_out).reshape(-1, 7)
-        detections = self._filter_dets(det_out, self.size, self.class_ids, self.conf_thresh,
-                                       self.nms_thresh, self.max_area)
+        det_out = self.backend.synchronize()[0]
+        # print("DEBUG", len(det_out))
+        # for out in det_out:
+        #     print("DEBUG", out.shape)
+
+        # Get the num of boxes detected
+        num = int(det_out[0])
+        print("Number of Detections: ", num)
+
+        # Reshape to a two dimentional ndarray
+        pred = np.reshape(det_out[1:], (-1, 7))[:num, :]
+
+        detections = self._filter_dets(
+            pred,
+            self.size,
+            self.class_ids,
+            self.conf_thresh,
+            self.nms_thresh,
+            self.max_area,
+        )
         detections = np.asarray(detections, dtype=DET_DTYPE).view(np.recarray)
+
+        # print("DETECTIONS", detections)
+
         return detections
 
     @staticmethod
@@ -201,7 +232,7 @@ class YoloDetector(Detector):
         # HWC -> CHW
         chw = rgb.transpose(2, 0, 1)
         # Normalize to [0, 1] interval
-        normalized = chw / 255.
+        normalized = chw / 255.0
         out[:] = normalized.ravel()
 
     @staticmethod
@@ -232,6 +263,10 @@ class YoloDetector(Detector):
         keep = np.asarray(keep)
         nms_dets = det_out[keep]
 
+        # print("NMS Dets", nms_dets)
+
+        min_area = 100
+
         detections = []
         for i in range(len(nms_dets)):
             tlbr = to_tlbr(nms_dets[i, :4])
@@ -241,26 +276,32 @@ class YoloDetector(Detector):
             label = int(nms_dets[i, 5])
             conf = nms_dets[i, 4] * nms_dets[i, 6]
             if 0 < area(tlbr) <= max_area:
-                detections.append((tlbr, label, conf))
+                if np.any(get_size(tlbr) <= 10):
+                    continue
+                else:
+                    detections.append((tlbr, label, conf))
         return detections
 
 
 class PublicDetector(Detector):
     def __init__(self, size, config):
         super().__init__(size)
-        self.seq_root = Path(__file__).parents[1] / config['sequence']
-        self.conf_thresh = config['conf_thresh']
-        self.max_area = config['max_area']
+        self.seq_root = Path(__file__).parents[1] / config["sequence"]
+        self.conf_thresh = config["conf_thresh"]
+        self.max_area = config["max_area"]
 
         seqinfo = configparser.ConfigParser()
-        seqinfo.read(self.seq_root / 'seqinfo.ini')
-        self.seq_size = (int(seqinfo['Sequence']['imWidth']), int(seqinfo['Sequence']['imHeight']))
+        seqinfo.read(self.seq_root / "seqinfo.ini")
+        self.seq_size = (
+            int(seqinfo["Sequence"]["imWidth"]),
+            int(seqinfo["Sequence"]["imHeight"]),
+        )
 
         self.detections = defaultdict(list)
         self.query_fid = None
 
-        det_txt = self.seq_root / 'det' / 'det.txt'
-        for frame_id, _, x, y, w, h, conf in np.loadtxt(det_txt, delimiter=','):
+        det_txt = self.seq_root / "det" / "det.txt"
+        for frame_id, _, x, y, w, h, conf in np.loadtxt(det_txt, delimiter=","):
             tlbr = to_tlbr((x, y, w, h))
             # scale and clip inside frame
             tlbr[:2] = tlbr[:2] / self.seq_size * self.size
@@ -275,4 +316,7 @@ class PublicDetector(Detector):
         self.query_fid = frame_id + 1
 
     def postprocess(self):
-        return np.asarray(self.detections[self.query_fid], dtype=DET_DTYPE).view(np.recarray)
+        return np.asarray(self.detections[self.query_fid], dtype=DET_DTYPE).view(
+            np.recarray
+        )
+

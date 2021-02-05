@@ -12,4 +12,5 @@ gdown https://drive.google.com/uc?id=1MLC2lKnQvAQgBKZP1EXB6UdmqujY9qVd -O $DIR/o
 gdown https://drive.google.com/uc?id=1-Cqk2P72P4feYLJGtJFPcCxN5JttzTfX -O $DIR/ssd_inception_v2_coco.pb
 gdown https://drive.google.com/uc?id=1IfSveiXaub-L6PO9mqne5pk2EByzb25z -O $DIR/ssd_mobilenet_v1_coco.pb
 gdown https://drive.google.com/uc?id=1ste0fQevAjF4UqD3JsCtu1rUAwCTmETN -O $DIR/ssd_mobilenet_v2_coco.pb
-gdown https://drive.google.com/uc?id=1-kXZpA6y8pNbDMMD7N--IWIjwqqnAIGZ -O $DIR/yolov4_crowdhuman.onnx
+gdown https://drive.google.com/uc?id=1vUMb6S9tGne5cuUFipFzgnpcod0tNwMB -O $DIR/yolov5s_drone.onnx
+gdown https://drive.google.com/uc?id=10o2540I-TRMsJsmEseYvTY0j90gjlK4R -O $DIR/yolov5s_drone-simple.onnx

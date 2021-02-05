@@ -17,8 +17,8 @@ ifeq ($(cpu_arch), aarch64)  # Jetson
     $(error Cannot determine cuda compute automatically, so please modify Makefile manually)
   endif
 else ifeq ($(cpu_arch), x86_64)  # x86_64 PC
-  $(warning "compute=75" is for GeForce RTX-2080 Ti.  Please make sure CUDA compute is set correctly for your system in the Makefile.)
-  compute=75
+  $(warning "compute=52" is for GeForce GTX Titan X (Maxwell).  Please make sure CUDA compute is set correctly for your system in the Makefile.)
+  compute=52
 else
   $(error Unkown CPU architecture: neither "aarch" nor "x86_64")
 endif
@@ -44,5 +44,5 @@ clean:
 libyolo_layer.so: yolo_layer.o
 	$(CC) -shared -o $@ $< $(LIBS)
 
-yolo_layer.o: yolo_layer.cu yolo_layer.h
+yolo_layer.o: yolo_layer.cu yolo_layer.h utils.h
 	$(NVCC) -ccbin $(CC) $(INCS) $(NVCCFLAGS) -Xcompiler -fPIC -c -o $@ $<

@@ -41,21 +41,22 @@ class MOT:
         self.size = size
         self.draw = draw
         self.verbose = verbose
-        self.detector_type = DetectorType[config['detector_type']]
-        self.detector_frame_skip = config['detector_frame_skip']
+        self.detector_type = DetectorType[config["detector_type"]]
+        self.detector_frame_skip = config["detector_frame_skip"]
 
-        LOGGER.info('Loading detector model...')
+        LOGGER.info("Loading detector model...")
         if self.detector_type == DetectorType.SSD:
-            self.detector = SSDDetector(self.size, config['ssd_detector'])
+            self.detector = SSDDetector(self.size, config["ssd_detector"])
         elif self.detector_type == DetectorType.YOLO:
-            self.detector = YoloDetector(self.size, config['yolo_detector'])
+            self.detector = YoloDetector(self.size, config["yolo_detector"])
         elif self.detector_type == DetectorType.PUBLIC:
-            self.detector = PublicDetector(self.size, config['public_detector'])
+            self.detector = PublicDetector(self.size, config["public_detector"])
 
-        LOGGER.info('Loading feature extractor model...')
-        self.extractor = FeatureExtractor(config['feature_extractor'])
-        self.tracker = MultiTracker(self.size, capture_dt, self.extractor.metric,
-                                    config['multi_tracker'])
+        LOGGER.info("Loading feature extractor model...")
+        self.extractor = FeatureExtractor(config["feature_extractor"])
+        self.tracker = MultiTracker(
+            self.size, capture_dt, self.extractor.metric, config["multi_tracker"]
+        )
 
         # reset counters
         self.frame_count = 0
@@ -69,8 +70,11 @@ class MOT:
     @property
     def visible_tracks(self):
         # retrieve confirmed and active tracks from the tracker
-        return [track for track in self.tracker.tracks.values()
-                if track.confirmed and track.active]
+        return [
+            track
+            for track in self.tracker.tracks.values()
+            if track.confirmed and track.active
+        ]
 
     def initiate(self):
         """
@@ -112,6 +116,7 @@ class MOT:
                 tic = time.perf_counter()
                 self.tracker.track(frame)
                 self.tracker_time += time.perf_counter() - tic
+        # print("DETECTIONS TO MOT: ", detections)
 
         if self.draw:
             self._draw(frame, detections)
@@ -119,9 +124,18 @@ class MOT:
 
     def _draw(self, frame, detections):
         draw_tracks(frame, self.visible_tracks, show_flow=self.verbose)
+        # draw_detections(frame, detections)
         if self.verbose:
             draw_detections(frame, detections)
-            draw_flow_bboxes(frame, self.tracker)
-            draw_background_flow(frame, self.tracker)
-        cv2.putText(frame, f'visible: {len(self.visible_tracks)}', (30, 30),
-                    cv2.FONT_HERSHEY_SIMPLEX, 1, 0, 2, cv2.LINE_AA)
+            # draw_flow_bboxes(frame, self.tracker)
+            # draw_background_flow(frame, self.tracker)
+        cv2.putText(
+            frame,
+            f"visible: {len(self.visible_tracks)}",
+            (30, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            0,
+            2,
+            cv2.LINE_AA,
+        )
